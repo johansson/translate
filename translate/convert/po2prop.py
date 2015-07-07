@@ -135,6 +135,28 @@ class reprop:
             # We don't want the plural marker to be translated:
             del self.inputstore.locationindex[location]
 
+    def translate_unit(self, key, unit, delimiter):
+        if not unit.istranslated() and bool(unit.source) and self.remove_untranslated:
+                    return u""
+        else:
+            if unit.isfuzzy() and not self.includefuzzy or len(unit.target) == 0:
+                value = unit.source
+            else:
+                value = self._handle_accesskeys(unit, key)
+            self.inecho = False
+            assert isinstance(value, unicode)
+            return "%(key)s%(del)s%(value)s%(term)s%(eol)s" % {
+                "key": "%s%s%s" % (self.personality.key_wrap_char,
+                                   key,
+                                   self.personality.key_wrap_char),
+                "del": delimiter,
+                "value": "%s%s%s" % (self.personality.value_wrap_char,
+                                     self.personality.encode(value),
+                                     self.personality.value_wrap_char),
+                "term": self.personality.pair_terminator,
+                "eol": eol,
+            }
+
     def convertline(self, line):
         returnline = u""
         # handle multiline msgid if we're in one
@@ -166,26 +188,10 @@ class reprop:
                 delimiter = prespace + delimiter_char + postspace
             if key in self.inputstore.locationindex:
                 unit = self.inputstore.locationindex[key]
-                if not unit.istranslated() and bool(unit.source) and self.remove_untranslated:
-                    returnline = u""
-                else:
-                    if unit.isfuzzy() and not self.includefuzzy or len(unit.target) == 0:
-                        value = unit.source
-                    else:
-                        value = self._handle_accesskeys(unit, key)
-                    self.inecho = False
-                    assert isinstance(value, unicode)
-                    returnline = "%(key)s%(del)s%(value)s%(term)s%(eol)s" % {
-                        "key": "%s%s%s" % (self.personality.key_wrap_char,
-                                           key,
-                                           self.personality.key_wrap_char),
-                        "del": delimiter,
-                        "value": "%s%s%s" % (self.personality.value_wrap_char,
-                                             self.personality.encode(value),
-                                             self.personality.value_wrap_char),
-                        "term": self.personality.pair_terminator,
-                        "eol": eol,
-                    }
+                returnline = self.translate_unit(key, unit, delimiter)
+            elif key in self.inputstore.sourceindex:
+                unit = self.inputstore.sourceindex[key][0]
+                returnline = self.translate_unit(key, unit, delimiter)
             else:
                 self.inecho = True
                 returnline = line + eol
